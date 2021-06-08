@@ -22,7 +22,7 @@ hidden_units      <- mlflow_param("hidden_units", 100, "integer", "Number of uni
 hidden_activation <- mlflow_param("hidden_activation", "relu", "string", "Activation function for the hidden layer")
 dropout_rate      <- mlflow_param("dropout_rate", 0.5, "numeric", "Dropout rate (after the hidden layer)")
 epsilon           <- mlflow_param("epsilon", 0.01, "numeric", "Epsilon parameter of the batch normalization (after convolution)")
-batch_size        <- mlflow_param("batch_size", 128, "integer", "Mini-batch size")
+batch_size        <- mlflow_param("batch_size", 64, "integer", "Mini-batch size")
 epochs            <- mlflow_param("epochs", 5, "integer", "Number of training epochs")
 
 ## -------------------------------------------------------------------------------------
@@ -45,7 +45,7 @@ train_generator_flow <- flow_images_from_directory(
   directory = train_images_dir,
   generator = train_images_generator,
   class_mode = 'categorical',
-  batch_size = 5,
+  batch_size = batch_size,
   target_size = c(64, 64)         # (w x h) --> (64 x 64)
 )
 
@@ -53,7 +53,7 @@ validation_generator_flow <- flow_images_from_directory(
   directory = val_images_dir,
   generator = val_images_generator,
   class_mode = 'categorical',
-  batch_size = 5,
+  batch_size = batch_size,
   target_size = c(64, 64)         # (w x h) --> (64 x 64)
 )
 
@@ -61,7 +61,7 @@ test_generator_flow <- flow_images_from_directory(
   directory = test_images_dir,
   generator = test_images_generator,
   class_mode = 'categorical',
-  batch_size = 5,
+  batch_size = batch_size,
   target_size = c(64, 64)         # (w x h) --> (64 x 64)
 )
 
@@ -70,11 +70,10 @@ test_generator_flow <- flow_images_from_directory(
 
 # Definir arquitectura
 model <- keras_model_sequential() %>%
-  layer_conv_2d(filters = 32,  kernel_size = c(3, 3), activation = hidden_activation, input_shape = c(64, 64, 3)) %>%
-  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
-  layer_conv_2d(filters = 64,  kernel_size = c(3, 3), activation = hidden_activation) %>% layer_batch_normalization(epsilon = epsilon) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
-  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = hidden_activation) %>% layer_batch_normalization(epsilon = epsilon) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
-  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = hidden_activation) %>% layer_batch_normalization(epsilon = epsilon) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 128,  kernel_size = c(3, 3), activation = hidden_activation, input_shape = c(64, 64, 3)) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 128,  kernel_size = c(3, 3), activation = hidden_activation) %>% layer_batch_normalization(epsilon = epsilon) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = hidden_activation) %>% layer_batch_normalization(epsilon = epsilon) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 32, kernel_size = c(3, 3), activation = hidden_activation) %>% layer_batch_normalization(epsilon = epsilon) %>% layer_max_pooling_2d(pool_size = c(2, 2)) %>%
   layer_flatten() %>%
   layer_dense(units = hidden_units, activation = hidden_activation) %>%
   layer_dropout(rate = dropout_rate) %>% 
@@ -85,7 +84,7 @@ summary(model)
 # Compilar modelo
 model %>% compile(
   loss = 'categorical_crossentropy',
-  optimizer = optimizer_rmsprop(),
+  optimizer = optimizer_adam(),
   metrics = c('accuracy')
 )
 
@@ -95,10 +94,10 @@ with(mlflow_start_run(), {
 
   # Entrenar modelo
   history <- model %>% 
-    fit_generator(
-      generator = train_generator_flow, 
+    fit(
+      train_generator_flow, 
       validation_data = validation_generator_flow,
-      steps_per_epoch = batch_size,
+      steps_per_epoch = train_generator_flow$samples / batch_size,
       epochs = epochs
     )
   
@@ -110,9 +109,10 @@ with(mlflow_start_run(), {
     evaluate_generator(test_generator_flow, steps = 1)
   
   # Guardar valores interesantes de la ejecución
-  # Por ejemplo, para estudio de dropout + epochs
   mlflow_log_param("dropout_rate", dropout_rate)
   mlflow_log_param("epochs", epochs)
+  mlflow_log_param("batch_size", batch_size)
+  
   mlflow_log_metric("loss", metrics["loss"])
   mlflow_log_metric("accuracy", metrics["accuracy"])
   
@@ -120,7 +120,7 @@ with(mlflow_start_run(), {
   mlflow_log_model(model, "model")
   
   # Mostrar salida
-  message("CNN model (dropout=", dropout_rate, ", epochs=", epochs, "):")
+  message("CNN model (dropout_rate=", dropout_rate, ", epochs=", epochs, ", batch_size= ", batch_size, "):")
   message("  loss: ", metrics["loss"])
   message("  accuracy: ", metrics["accuracy"])
 })

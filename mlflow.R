@@ -24,7 +24,12 @@ mlflow_ui()
 
 
 # Cambiar valores de los parámetros
-mlflow_run(entry_point = "clasificacion_binaria_mlflow.R", parameters = list(dropout = 0.5, epochs = 3))
+
+mlflow_run(entry_point = "clasificacion_binaria_mlflow.R", parameters = list(dropout_rate = 0.3, epochs = 10, hidden_units=128))
+
+mlflow_run(entry_point = "clasificacion_binaria_mlflow.R", parameters = list(dropout_rate = 0.5, epochs = 15, batch_size=128))
+
+mlflow_run(entry_point = "clasificacion_binaria_mlflow.R", parameters = list(dropout_rate = 0.3, epochs = 15, batch_size=50))
 
 
 # Cargar modelo y realizar predicción
