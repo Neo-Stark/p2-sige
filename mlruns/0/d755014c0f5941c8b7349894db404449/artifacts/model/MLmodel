@@ -1,0 +1,11 @@
+utc_time_created: 21-06-08T00:12:14.14.44
+run_id: d755014c0f5941c8b7349894db404449
+artifact_path: model
+flavors:
+  keras:
+    version: 2.2.2
+    data: model.h5
+  python_function:
+    loader_module: mlflow.keras
+    data: model.h5
+    env: conda_env.yaml
